@@ -49,6 +49,49 @@ residual = hyper_conn_branch(residual)
 residual = reduce_stream(residual)
 ```
 
+Or doing it manually, as in the paper
+
+```python
+import torch
+from torch import nn
+
+# a single branch layer
+
+branch = nn.Linear(512, 512)
+
+# before
+
+residual = torch.randn(2, 1024, 512)
+
+residual = branch(residual) + residual
+
+# after, say 4 streams in paper
+
+from hyper_connections import HyperConnections
+
+expand_stream, reduce_stream = HyperConnections.get_expand_reduce_stream_functions(4)
+
+# 1. wrap your branch function
+
+hyper_conn = HyperConnections(4, dim = 512)
+
+# 2. expand to 4 streams
+
+residual = expand_stream(residual)
+
+# 3. forward your residual into hyper connection for the branch input + add residual function (learned betas)
+
+branch_input, depth_connect = hyper_conn(residual)
+
+branch_output = branch(branch_input)
+
+residual = depth_connect(branch_output)
+
+# 4. reduce 4 streams with a summation, this has to be done after your for loop trunk
+
+residual = reduce_stream(residual)
+```
+
 ## Citation
 
 ```bibtex
