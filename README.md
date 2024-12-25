@@ -81,11 +81,11 @@ residual = expand_stream(residual)
 
 # 3. forward your residual into hyper connection for the branch input + add residual function (learned betas)
 
-branch_input, depth_connect = hyper_conn(residual)
+branch_input, add_residual = hyper_conn(residual)
 
 branch_output = branch(branch_input)
 
-residual = depth_connect(branch_output)
+residual = add_residual(branch_output)
 
 # 4. reduce 4 streams with a summation, this has to be done after your for loop trunk
 

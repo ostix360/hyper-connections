@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.nn import Module
 import torch.nn.functional as F
+from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
 
@@ -125,4 +126,8 @@ class HyperConnections(Module):
 
         branch_output = self.branch(branch_input, **branch_kwargs)
 
-        return add_residual_fn(branch_output)
+        (branch_output, *rest), tree_spec = tree_flatten(branch_output)
+
+        branch_output = add_residual_fn(branch_output)
+
+        return tree_unflatten((branch_output, *rest), tree_spec)
