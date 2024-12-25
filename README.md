@@ -2,7 +2,7 @@
 
 ## Hyper Connections
 
-Attempt to make the multiple residual stream approach proposed by Hyper-Connections paper by Bytedance AI more accessible as a reusable library, and for following any new research in this direction.
+Attempt to make multiple residual streams, proposed in [Hyper-Connections paper](https://arxiv.org/abs/2409.19606) out of Bytedance AI lab, accessible as an easy to use library, as well as for following any new research in this direction.
 
 ## Install
 
@@ -71,7 +71,7 @@ from hyper_connections import HyperConnections
 
 expand_stream, reduce_stream = HyperConnections.get_expand_reduce_stream_functions(4)
 
-# 1. wrap your branch function
+# 1. instantiate hyper connection with correct number of streams (4 in this case)
 
 hyper_conn = HyperConnections(4, dim = 512)
 
