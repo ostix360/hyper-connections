@@ -180,3 +180,34 @@ class HyperConnections(Module):
         branch_output = add_residual_fn(branch_output)
 
         return tree_unflatten((branch_output, *rest), tree_spec)
+
+# stream embed
+
+class StreamEmbed(Module):
+    def __init__(
+        self,
+        num_streams,
+        dim,
+        channel_first = False
+    ):
+        super().__init__()
+        self.channel_first = channel_first
+        self.num_streams = num_streams
+
+        self.stream_embed = nn.Parameter(torch.zeros(num_streams, dim))
+
+    def forward(self, residuals):
+
+        if self.channel_first:
+            residuals = rearrange(residuals, '(b s) d ... -> b ... s d', s = self.num_streams)
+        else:
+            residuals = rearrange(residuals, '(b s) ... d -> b ... s d', s = self.num_streams)
+
+        residuals = residuals + self.stream_embed
+
+        if self.channel_first:
+            residuals = rearrange(residuals, 'b ... s d -> (b s) d ...', s = self.num_streams)
+        else:
+            residuals = rearrange(residuals, 'b ... s d -> (b s) ... d', s = self.num_streams)
+
+        return residuals
