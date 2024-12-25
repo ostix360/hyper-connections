@@ -69,6 +69,14 @@ class HyperConnections(Module):
 
         return expand_fn, reduce_fn
 
+    @classmethod
+    def get_init_and_expand_reduce_stream_functions(cls, num_streams):
+
+        init_hyper_conn_fn = partial(cls, num_streams)
+        expand_reduce_fns = cls.get_expand_reduce_stream_functions(num_streams)
+
+        return (init_hyper_conn_fn, *expand_reduce_fns)
+
     def width_connection(self, residuals):
         # width connection
 

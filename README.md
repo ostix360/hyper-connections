@@ -30,11 +30,11 @@ residual = branch(residual) + residual
 
 from hyper_connections import HyperConnections
 
-expand_stream, reduce_stream = HyperConnections.get_expand_reduce_stream_functions(4)
+init_hyper_conn, expand_stream, reduce_stream = HyperConnections.get_init_and_expand_reduce_stream_functions(4)
 
 # 1. wrap your branch function
 
-hyper_conn_branch = HyperConnections(4, dim = 512, branch = branch)
+hyper_conn_branch = init_hyper_conn(dim = 512, branch = branch)
 
 # 2. expand to 4 streams, this must be done before your trunk, typically a for-loop with many branch functions
 
@@ -69,11 +69,11 @@ residual = branch(residual) + residual
 
 from hyper_connections import HyperConnections
 
-expand_stream, reduce_stream = HyperConnections.get_expand_reduce_stream_functions(4)
+init_hyper_conn, expand_stream, reduce_stream = HyperConnections.get_init_and_expand_reduce_stream_functions(4)
 
-# 1. instantiate hyper connection with correct number of streams (4 in this case)
+# 1. instantiate hyper connection with correct number of streams (4 in this case) - or use the init function above
 
-hyper_conn = HyperConnections(4, dim = 512)
+hyper_conn = init_hyper_conn(dim = 512)
 
 # 2. expand to 4 streams
 
