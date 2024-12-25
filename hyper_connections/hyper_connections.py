@@ -114,7 +114,7 @@ class HyperConnections(Module):
 
         return output
 
-    def forward(self, residuals, **branch_kwargs):
+    def forward(self, residuals, *branch_args, **branch_kwargs):
 
         branch_input, residuals, beta = self.width_connection(residuals)
 
@@ -124,7 +124,7 @@ class HyperConnections(Module):
         if not exists(self.branch):
             return branch_input, add_residual_fn
 
-        branch_output = self.branch(branch_input, **branch_kwargs)
+        branch_output = self.branch(branch_input, *branch_args, **branch_kwargs)
 
         (branch_output, *rest), tree_spec = tree_flatten(branch_output)
 
