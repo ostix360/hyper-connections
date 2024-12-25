@@ -188,15 +188,20 @@ class StreamEmbed(Module):
         self,
         num_streams,
         dim,
-        channel_first = False
+        channel_first = False,
+        expand_to_streams = False
     ):
         super().__init__()
         self.channel_first = channel_first
         self.num_streams = num_streams
 
+        self.expand_to_streams = expand_to_streams
         self.stream_embed = nn.Parameter(torch.zeros(num_streams, dim))
 
     def forward(self, residuals):
+
+        if self.expand_to_streams:
+            residuals = repeat(residuals, 'b ... -> (b s) ...', s = self.num_streams)
 
         if self.channel_first:
             residuals = rearrange(residuals, '(b s) d ... -> b ... s d', s = self.num_streams)
