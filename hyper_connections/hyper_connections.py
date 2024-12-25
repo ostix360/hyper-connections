@@ -30,6 +30,7 @@ class HyperConnections(Module):
         branch: Module | None = None,
         layer_index = None,
         tanh = True,
+        channel_first = False
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -56,6 +57,10 @@ class HyperConnections(Module):
         self.dynamic_beta_fn = nn.Parameter(torch.zeros(dim))
         self.dynamic_beta_scale = nn.Parameter(torch.ones(()) * 1e-2)
 
+        # channel first option
+
+        self.channel_first = channel_first
+
     @classmethod
     def get_expand_reduce_stream_functions(cls, num_streams):
         expand_fn = partial(repeat, pattern = 'b ... -> (b s) ...', s = num_streams)
@@ -66,31 +71,47 @@ class HyperConnections(Module):
     def width_connection(self, residuals):
         # width connection
 
+        if self.channel_first:
+            residuals = rearrange(residuals, 'b d ... -> b ... d')
+
         residuals = rearrange(residuals, '(b s) ... d -> b ... s d', s = self.num_residual_streams)
 
         normed = self.norm(residuals)
+
+        # alpha for weighted sum of residuals going into branch
 
         wc_weight = self.act(normed @ self.dynamic_alpha_fn)
         dynamic_alpha = wc_weight * self.dynamic_alpha_scale
         alpha = dynamic_alpha + self.static_alpha
 
+        # beta for weights from branch output back to residual streams
+
         dc_weight = self.act(normed @ self.dynamic_beta_fn)
         dynamic_beta = dc_weight * self.dynamic_beta_scale
         beta = dynamic_beta + self.static_beta
 
-        # width connection
-
         mix_h = einsum(alpha, residuals, '... s t, ... s d -> ... t d')
 
         branch_input, residuals = mix_h[..., 0, :], mix_h[..., 1:, :]
+
+        if self.channel_first:
+            branch_input = rearrange(branch_input, 'b ... d -> b d ...')
 
         return branch_input, residuals, beta
 
     def depth_connection(self, branch_output, residuals, beta):
         # 'depth' connection
 
+        if self.channel_first:
+            branch_output = rearrange(branch_output, 'b d ... -> b ... d')
+
         residuals = einsum(branch_output, beta, 'b ... d, b ... s -> b ... s d') + residuals
-        return rearrange(residuals, 'b ... s d -> (b s) ... d')
+        output = rearrange(residuals, 'b ... s d -> (b s) ... d')
+
+        if self.channel_first:
+            output = rearrange(output, 'b ... d -> b d ...')
+
+        return output
 
     def forward(self, residuals, **branch_kwargs):
 
