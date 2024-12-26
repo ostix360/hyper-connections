@@ -174,7 +174,7 @@ class HyperConnections(Module):
         def forward_and_add_residual(residual, *args, **kwargs):
             branch_input, add_residual = self.forward(residual)
 
-            branch_output = branch(branch_input)
+            branch_output = branch(branch_input, *args, **kwargs)
 
             residual = add_residual(branch_output)
 
@@ -187,18 +187,18 @@ class HyperConnections(Module):
         branch_input, residuals, residual_kwargs = self.width_connection(residuals)
 
         def add_residual_fn(branch_out):
-            return self.depth_connection(branch_out, residuals, **residual_kwargs)
+            (branch_out, *rest), tree_spec = tree_flatten(branch_out)
+
+            branch_out = self.depth_connection(branch_out, residuals, **residual_kwargs)
+
+            return tree_unflatten((branch_out, *rest), tree_spec)
 
         if not exists(self.branch):
             return branch_input, add_residual_fn
 
         branch_output = self.branch(branch_input, *branch_args, **branch_kwargs)
 
-        (branch_output, *rest), tree_spec = tree_flatten(branch_output)
-
-        branch_output = add_residual_fn(branch_output)
-
-        return tree_unflatten((branch_output, *rest), tree_spec)
+        return add_residual_fn(branch_output)
 
 # stream embed
 
