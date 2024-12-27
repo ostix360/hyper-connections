@@ -42,6 +42,7 @@ class HyperConnections(Module):
         layer_index = None,
         tanh = True,
         channel_first = False,
+        dropout = 0.,
         num_branch_inputs = 1  # residuals will be linearly combined to multiple inputs, fed through the branch, then linearly combined back out to residuals
     ):
         """
@@ -88,6 +89,10 @@ class HyperConnections(Module):
         self.dynamic_alpha_scale = nn.Parameter(torch.ones(()) * 1e-2)
         self.dynamic_beta_fn = nn.Parameter(torch.zeros(dim, num_branch_inputs))
         self.dynamic_beta_scale = nn.Parameter(torch.ones(()) * 1e-2)
+
+        # dropout
+
+        self.dropout = nn.Dropout(dropout)
 
         # channel first option
 
@@ -164,7 +169,7 @@ class HyperConnections(Module):
         if self.channel_first:
             output = rearrange(output, 'b ... d -> b d ...')
 
-        return output
+        return self.dropout(output)
 
     def decorate_branch(self, branch: Callable | tuple[Callable, ...] | list[Callable]):
         assert not exists(self.branches), 'branch was already wrapped on init'

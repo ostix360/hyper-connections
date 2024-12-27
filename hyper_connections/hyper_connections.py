@@ -86,7 +86,8 @@ class HyperConnections(Module):
         branch: Module | None = None,
         layer_index = None,
         tanh = True,
-        channel_first = False
+        channel_first = False,
+        dropout = 0.
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -115,6 +116,10 @@ class HyperConnections(Module):
         self.dynamic_alpha_scale = nn.Parameter(torch.ones(()) * 1e-2)
         self.dynamic_beta_fn = nn.Parameter(torch.zeros(dim))
         self.dynamic_beta_scale = nn.Parameter(torch.ones(()) * 1e-2)
+
+        # dropouts
+
+        self.dropout = nn.Dropout(dropout)
 
         # channel first option
 
@@ -184,7 +189,7 @@ class HyperConnections(Module):
         if self.channel_first:
             output = rearrange(output, 'b ... d -> b d ...')
 
-        return output
+        return self.dropout(output)
 
     def decorate_branch(self, branch: Callable):
         assert not exists(self.branch), 'branch was already wrapped on init'
