@@ -77,6 +77,9 @@ class HyperConnections(Module):
 
     @classmethod
     def get_expand_reduce_stream_functions(cls, num_streams):
+        if disable:
+            return (identity, identity)
+
         expand_fn = partial(repeat, pattern = 'b ... -> (b s) ...', s = num_streams)
         reduce_fn = partial(reduce, pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
 
@@ -88,7 +91,7 @@ class HyperConnections(Module):
         hyper_conn_klass = cls if not disable else Residual
 
         init_hyper_conn_fn = partial(hyper_conn_klass, num_streams)
-        expand_reduce_fns = cls.get_expand_reduce_stream_functions(num_streams) if not disable else (identity, identity)
+        expand_reduce_fns = cls.get_expand_reduce_stream_functions(num_streams, disable = disable)
 
         return (init_hyper_conn_fn, *expand_reduce_fns)
 
