@@ -12,6 +12,16 @@ from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
 
+"""
+ein notation:
+b - batch
+d - feature dimension
+s - residual streams
+i - branch inputs
+br - branch functions
+t - residual streams + num branch inputs
+"""
+
 from hyper_connections.hyper_connections import Residual, StreamEmbed
 
 # helper functions

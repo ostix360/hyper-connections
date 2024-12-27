@@ -12,6 +12,14 @@ from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
 
+"""
+ein notation:
+b - batch
+d - feature dimension
+s - residual streams
+t - residual streams + num branch inputs
+"""
+
 # helper functions
 
 def exists(v):
