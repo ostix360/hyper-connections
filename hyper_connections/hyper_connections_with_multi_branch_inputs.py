@@ -6,8 +6,8 @@ from random import randrange
 
 import torch
 from torch import nn
-from torch.nn import Module
 import torch.nn.functional as F
+from torch.nn import Module, ModuleList
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
@@ -22,6 +22,9 @@ def exists(v):
 def default(v, d):
     return v if exists(v) else d
 
+def divisible_by(num, den):
+    return (num % den) == 0
+
 def identity(t):
     return t
 
@@ -35,7 +38,7 @@ class HyperConnections(Module):
         num_residual_streams,
         *,
         dim,
-        branch: Module | None = None,
+        branch: Module | tuple[Module, ...] | list[Module] | None = None,
         layer_index = None,
         tanh = True,
         channel_first = False,
@@ -46,7 +49,15 @@ class HyperConnections(Module):
         """
         super().__init__()
 
-        self.branch = branch
+        self.branches = None
+
+        if isinstance(branch, Module):
+            branch = [branch]
+
+        if exists(branch):
+            assert divisible_by(num_branch_inputs, len(branch))
+
+            self.branches = ModuleList(branch)
 
         # activation, seemingly results were wishy washy depending on using tanh or not
 
@@ -155,13 +166,22 @@ class HyperConnections(Module):
 
         return output
 
-    def decorate_branch(self, branch: Callable):
-        assert not exists(self.branch), 'branch was already wrapped on init'
+    def decorate_branch(self, branch: Callable | tuple[Callable, ...] | list[Callable]):
+        assert not exists(self.branches), 'branch was already wrapped on init'
 
         def forward_and_add_residual(residual, *args, **kwargs):
             branch_input, add_residual = self.forward(residual)
 
-            branch_output = branch(branch_input, *args, **kwargs)
+            if callable(branch):
+                branches = [branch]
+            else:
+                branches = branch
+
+            branch_inputs = rearrange(branch_input, '(br b) ... -> br b ...', br = len(branches))
+
+            branch_outputs = [fn(x, *args, **kwargs) for fn, x in zip(branches, branch_inputs)]
+
+            branch_output = torch.cat(branch_outputs)
 
             residual = add_residual(branch_output)
 
@@ -180,9 +200,13 @@ class HyperConnections(Module):
 
             return tree_unflatten((branch_out, *rest), tree_spec)
 
-        if not exists(self.branch):
+        if not exists(self.branches):
             return branch_input, add_residual_fn
 
-        branch_output = self.branch(branch_input, *branch_args, **branch_kwargs)
+        branch_inputs = rearrange(branch_input, '(br b) ... -> br b ...', br = len(self.branches))
+
+        branch_outputs = [fn(x, *branch_args, **branch_kwargs) for fn, x in zip(self.branches, branch_inputs)]
+
+        branch_output = torch.cat(branch_outputs)
 
         return add_residual_fn(branch_output)
