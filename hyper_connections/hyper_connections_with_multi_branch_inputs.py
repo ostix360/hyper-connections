@@ -57,12 +57,19 @@ class HyperConnections(Module):
         self.num_residual_streams = num_residual_streams
         self.num_branch_inputs = num_branch_inputs
 
-        init_residual_index = default(layer_index, randrange(num_residual_streams)) % num_residual_streams # just choose one random residual stream if layer index not given
-
         self.static_beta = nn.Parameter(torch.ones(num_residual_streams, num_branch_inputs))
 
-        init_alpha0 = torch.zeros((num_residual_streams, num_branch_inputs))
-        init_alpha0[init_residual_index, :] = 1.
+        # make sure each branch input receives from different residual stream on init
+
+        stream_branches = num_residual_streams * num_branch_inputs
+        layer_index = default(layer_index, randrange(stream_branches))
+        layer_offset = layer_index % stream_branches * num_branch_inputs
+
+        stream_seq = torch.arange(num_residual_streams)
+        branch_input_seq = torch.arange(num_branch_inputs)
+
+        init_alpha0 = rearrange(stream_seq, 's -> s 1') + rearrange(branch_input_seq, 'bi -> 1 bi') + layer_offset
+        init_alpha0 = ((init_alpha0 % num_residual_streams) == 0).float()
 
         self.static_alpha = nn.Parameter(torch.cat([init_alpha0, torch.eye(num_residual_streams)], dim = 1))
 
@@ -76,7 +83,7 @@ class HyperConnections(Module):
         self.channel_first = channel_first
 
     @classmethod
-    def get_expand_reduce_stream_functions(cls, num_streams):
+    def get_expand_reduce_stream_functions(cls, num_streams, disable = False):
         if disable:
             return (identity, identity)
 
