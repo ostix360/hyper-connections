@@ -258,3 +258,36 @@ class StreamEmbed(Module):
             residuals = rearrange(residuals, 'b ... s d -> (b s) ... d', s = self.num_streams)
 
         return residuals
+
+# attention pool - taken from Enformer https://www.nature.com/articles/s41592-021-01252-x , in turn taken from somewhere else
+
+class AttentionPoolReduceStream(Module):
+    def __init__(
+        self,
+        num_streams,
+        dim,
+        channel_first = False
+    ):
+        super().__init__()
+        self.num_streams = num_streams
+        self.channel_first = channel_first
+
+        self.to_attn_logits = nn.Linear(dim, dim, bias = False)
+        self.to_attn_logits.weight.data.copy_(torch.eye(dim))
+
+    def forward(self, residuals):
+
+        if self.channel_first:
+            residuals = rearrange(residuals, '(b s) d ... -> b ... s d', s = self.num_streams)
+        else:
+            residuals = rearrange(residuals, '(b s) ... d -> b ... s d', s = self.num_streams)
+
+        attn_logits = self.to_attn_logits(residuals)
+        attn = attn_logits.softmax(dim = -2)
+
+        residuals = reduce(residuals * attn, 'b ... s d -> b ... d', 'sum')
+
+        if self.channel_first:
+            residuals = rearrange(residuals, 'b ... d -> b d ...')
+
+        return residuals
