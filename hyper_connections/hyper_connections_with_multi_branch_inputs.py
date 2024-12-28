@@ -22,7 +22,7 @@ br - branch functions
 t - residual streams + num branch inputs
 """
 
-from hyper_connections.hyper_connections import Residual, StreamEmbed
+from hyper_connections.hyper_connections import Residual, StreamEmbed, RMSNorm
 
 # helper functions
 
@@ -74,7 +74,7 @@ class HyperConnections(Module):
 
         self.act = nn.Tanh() if tanh else nn.Identity()
 
-        self.norm = nn.RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
+        self.norm = RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
 
         self.num_residual_streams = num_residual_streams
         self.num_branch_inputs = num_branch_inputs

@@ -31,6 +31,17 @@ def default(v, d):
 def identity(t):
     return t
 
+# norms
+
+class RMSNorm(Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.scale = dim ** 0.5
+        self.gamma = nn.Parameter(torch.zeros(dim))
+
+    def forward(self, x):
+        return F.normalize(x, dim = -1) * self.scale * (self.gamma + 1)
+
 # main classes
 
 # residual base class
@@ -108,7 +119,7 @@ class HyperConnections(Module):
 
         self.act = nn.Tanh() if tanh else nn.Identity()
 
-        self.norm = nn.RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
+        self.norm = RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
 
         assert num_residual_streams > 0, '`num_residual_streams` must be greater than 0'
 

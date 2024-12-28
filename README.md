@@ -112,3 +112,10 @@ HyperConnections.get_init_and_expand_reduce_stream_functions(4, disable = True)
     url     = {https://api.semanticscholar.org/CorpusID:272987528}
 }
 ```
+
+```bibtex
+@misc{Rubin2024,
+    author  = {Ohad Rubin},
+    url     = {https://medium.com/@ohadrubin/exploring-weight-decay-in-layer-normalization-challenges-and-a-reparameterization-solution-ad4d12c24950}
+}
+```
