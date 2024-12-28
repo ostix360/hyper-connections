@@ -110,6 +110,8 @@ class HyperConnections(Module):
 
         self.norm = nn.RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
 
+        assert num_residual_streams > 0, '`num_residual_streams` must be greater than 0'
+
         self.num_residual_streams = num_residual_streams
         init_residual_index = default(layer_index, randrange(num_residual_streams)) % num_residual_streams # just choose one random residual stream if layer index not given
 
