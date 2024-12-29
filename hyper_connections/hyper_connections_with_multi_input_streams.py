@@ -185,7 +185,7 @@ class HyperConnections(Module):
         init_alpha0 = torch.zeros((num_residual_streams, 1))
         init_alpha0[init_residual_index, 0] = 1.
 
-        self.dynamic_alpha_and_branch_input = ProjActScale(dim, num_residual_streams + 1)
+        self.dynamic_alpha_and_branch_input = ProjActScale(dim, num_residual_streams + 1, activation = act)
         self.static_alpha = nn.Parameter(torch.cat([init_alpha0, torch.eye(num_residual_streams)], dim = 1))
 
         self.dynamic_beta = ProjActScale(dim, 1, activation = act, squeeze_output = True)
@@ -200,7 +200,7 @@ class HyperConnections(Module):
 
         self.additional_norms = ModuleList([RMSNorm(dim) for _, dim in additional_input_paths])
         self.additional_to_dynamic_input = ModuleList([ProjActScale(dim, 1, activation = act, squeeze_output = True) for _ , dim in additional_input_paths])
-        self.additional_static_input = nn.ParameterList([nn.Parameter(init_alpha0[..., 0])])
+        self.additional_static_input = nn.ParameterList([nn.Parameter(init_alpha0[..., 0]) for _ in additional_input_paths])
 
         self.additional_input_paths = additional_input_paths
 
