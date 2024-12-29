@@ -145,7 +145,7 @@ class Residual(Module):
 
 # hyper connection with multiple input streams
 
-InputPathType = int | str  # the path to the second residual stream, where `int` points to *args[`int` + 1] and `str` points to **kwargs[`str`]
+InputPathType = int | str  # the path to the second residual stream, where `int` points to *args[`int`] and `str` points to **kwargs[`str`] - `int` needs to be > 0, as 0 is the default input residual stream
 
 class HyperConnections(Module):
     @beartype
