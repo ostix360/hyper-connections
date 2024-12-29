@@ -196,6 +196,8 @@ class HyperConnections(Module):
         additional_input_paths = default(additional_input_paths, [])
         additional_input_paths = [one_path if isinstance(one_path, tuple) else (one_path, dim) for one_path in additional_input_paths]
 
+        assert all([isinstance(path, str) or path > 0 for (path, _) in additional_input_paths])
+
         self.additional_norms = ModuleList([RMSNorm(dim) for _, dim in additional_input_paths])
         self.additional_to_dynamic_input = ModuleList([ProjActScale(dim, 1, activation = act, squeeze_output = True) for _ , dim in additional_input_paths])
         self.additional_static_input = nn.ParameterList([nn.Parameter(init_alpha0[..., 0])])
@@ -247,12 +249,14 @@ class HyperConnections(Module):
 
         # take care of additional inputs
 
+        branch_args = list(branch_args)
+
         for (path, *_), norm, proj, learned_static in zip(self.additional_input_paths, self.additional_norms, self.additional_to_dynamic_input, self.additional_static_input):
 
             # get the residual streams from additional arguments
 
             if isinstance(path, int):
-                additional_residuals = branch_args[path]
+                additional_residuals = branch_args[path - 1]
             elif isinstance(path, str):
                 additional_residuals = branch_kwargs[path]
 
@@ -280,7 +284,7 @@ class HyperConnections(Module):
             # set back transformed residual
 
             if isinstance(path, int):
-                branch_args[path] = additional_residuals
+                branch_args[path - 1] = additional_residuals
             elif isinstance(path, str):
                 branch_kwargs[path] = additional_residuals
 
