@@ -34,14 +34,9 @@ Repository = "https://github.com/lucidrains/hyper-connections"
 
 [project.optional-dependencies]
 examples = []
-test = [
-    "pytest"
-]
 
 [tool.pytest.ini_options]
-pythonpath = [
-  "."
-]
+pythonpath = ["."]
 
 [build-system]
 requires = ["hatchling"]
@@ -49,7 +44,7 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = ["pytest>=8.2.0"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
