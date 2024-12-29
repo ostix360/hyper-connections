@@ -1,6 +1,6 @@
 [project]
 name = "hyper-connections"
-version = "0.0.21"
+version = "0.0.22"
 description = "Hyper-Connections"
 authors = [
     { name = "Phil Wang", email = "lucidrains@gmail.com" }
@@ -23,6 +23,7 @@ classifiers=[
 ]
 
 dependencies = [
+    "beartype",
     "einops>=0.8.0",
     "torch>=2.3",
 ]

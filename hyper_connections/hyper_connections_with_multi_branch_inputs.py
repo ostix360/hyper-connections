@@ -12,6 +12,8 @@ from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
 
+from beartype import beartype
+
 """
 ein notation:
 b - batch
@@ -38,11 +40,32 @@ def divisible_by(num, den):
 def identity(t):
     return t
 
+# main functions
+
+def get_expand_reduce_stream_functions(cls, num_streams, disable = False):
+    if disable:
+        return (identity, identity)
+
+    expand_fn = partial(repeat, pattern = 'b ... -> (b s) ...', s = num_streams)
+    reduce_fn = partial(reduce, pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
+
+    return expand_fn, reduce_fn
+
+def get_init_and_expand_reduce_stream_functions(cls, num_streams, disable = False):
+
+    hyper_conn_klass = HyperConnections if not disable else Residual
+
+    init_hyper_conn_fn = partial(hyper_conn_klass, num_streams)
+    expand_reduce_fns = get_expand_reduce_stream_functions(num_streams, disable = disable)
+
+    return (init_hyper_conn_fn, *expand_reduce_fns)
+
 # main classes
 
 # hyper connection residual streams
 
 class HyperConnections(Module):
+    @beartype
     def __init__(
         self,
         num_residual_streams,
@@ -107,26 +130,6 @@ class HyperConnections(Module):
         # channel first option
 
         self.channel_first = channel_first
-
-    @classmethod
-    def get_expand_reduce_stream_functions(cls, num_streams, disable = False):
-        if disable:
-            return (identity, identity)
-
-        expand_fn = partial(repeat, pattern = 'b ... -> (b s) ...', s = num_streams)
-        reduce_fn = partial(reduce, pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
-
-        return expand_fn, reduce_fn
-
-    @classmethod
-    def get_init_and_expand_reduce_stream_functions(cls, num_streams, disable = False):
-
-        hyper_conn_klass = cls if not disable else Residual
-
-        init_hyper_conn_fn = partial(hyper_conn_klass, num_streams)
-        expand_reduce_fns = cls.get_expand_reduce_stream_functions(num_streams, disable = disable)
-
-        return (init_hyper_conn_fn, *expand_reduce_fns)
 
     def width_connection(self, residuals):
         num_streams, num_branch_inputs = self.num_residual_streams, self.num_branch_inputs
@@ -225,3 +228,6 @@ class HyperConnections(Module):
         branch_output = torch.cat(branch_outputs)
 
         return add_residual_fn(branch_output)
+
+HyperConnections.get_expand_reduce_stream_functions = staticmethod(get_expand_reduce_stream_functions)
+HyperConnections.get_init_and_expand_reduce_stream_functions = staticmethod(get_init_and_expand_reduce_stream_functions)

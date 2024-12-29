@@ -28,9 +28,9 @@ residual = branch(residual) + residual
 
 # after, say 4 streams in paper
 
-from hyper_connections import HyperConnections
+from hyper_connections import get_init_and_expand_reduce_stream_functions
 
-init_hyper_conn, expand_stream, reduce_stream = HyperConnections.get_init_and_expand_reduce_stream_functions(4)
+init_hyper_conn, expand_stream, reduce_stream = get_init_and_expand_reduce_stream_functions(4)
 
 # 1. wrap your branch function
 
@@ -67,9 +67,9 @@ residual = branch(residual) + residual
 
 # after, say 4 streams in paper
 
-from hyper_connections import HyperConnections
+from hyper_connections import get_init_and_expand_reduce_stream_functions
 
-init_hyper_conn, expand_stream, reduce_stream = HyperConnections.get_init_and_expand_reduce_stream_functions(4)
+init_hyper_conn, expand_stream, reduce_stream = get_init_and_expand_reduce_stream_functions(4)
 
 # 1. instantiate hyper connection with correct number of streams (4 in this case) - or use the init function above
 
@@ -97,7 +97,7 @@ residual = reduce_stream(residual)
 To compare hyper connections to plain residual without changing the code, just pass `disable = True` when fetching the functions
 
 ```python
-HyperConnections.get_init_and_expand_reduce_stream_functions(4, disable = True)
+get_init_and_expand_reduce_stream_functions(4, disable = True)
 ```
 
 ## Citation
