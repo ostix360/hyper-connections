@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable
+from typing import Callable, Union
 
 from functools import partial
 from random import randrange
@@ -12,8 +12,6 @@ from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
 from einops.layers.torch import Rearrange
-
-from beartype import beartype
 
 """
 ein notation:
@@ -95,7 +93,6 @@ class ProjActScale(Module):
 # residual base class
 
 class Residual(Module):
-    @beartype
     def __init__(
         self,
         *args,
@@ -145,10 +142,9 @@ class Residual(Module):
 
 # hyper connection with multiple input streams
 
-InputPathType = int | str  # the path to the second residual stream, where `int` points to *args[`int`] and `str` points to **kwargs[`str`] - `int` needs to be > 0, as 0 is the default input residual stream
+InputPathType = Union[int, str]  # the path to the second residual stream, where `int` points to *args[`int`] and `str` points to **kwargs[`str`] - `int` needs to be > 0, as 0 is the default input residual stream
 
 class HyperConnections(Module):
-    @beartype
     def __init__(
         self,
         num_residual_streams,
