@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch.utils._pytree import tree_flatten, tree_unflatten
 
 from einops import rearrange, repeat, reduce, einsum
+from einops.layers.torch import Reduce
 
 """
 ein notation:
@@ -35,11 +36,11 @@ def identity(t):
 
 def get_expand_reduce_stream_functions(num_streams, disable = False):
 
-    if disable:
-        return (identity, identity)
+    if num_streams == 1 or disable:
+        return (nn.Identity(), nn.Identity())
 
-    expand_fn = partial(repeat, pattern = 'b ... -> (b s) ...', s = num_streams)
-    reduce_fn = partial(reduce, pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
+    expand_fn = Reduce(pattern = 'b ... -> (b s) ...', reduction = 'repeat', s = num_streams)
+    reduce_fn = Reduce(pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
 
     return expand_fn, reduce_fn
 
