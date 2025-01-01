@@ -143,16 +143,16 @@ def test_residual_transform(disable):
     # a single branch layer
 
     branch = nn.Sequential(
-        nn.Linear(512, 512),
+        nn.Conv2d(512, 512, 3, padding = 1),
         nn.SiLU(),
-        nn.Linear(512, 256)
+        nn.Conv2d(512, 256, 3, padding = 1)
     )
 
-    residual_fn = nn.Linear(512, 256)
+    residual_fn = nn.Conv2d(512, 256, 1)
 
     # before
 
-    residual = torch.randn(2, 1024, 512)
+    residual = torch.randn(2, 512, 16, 16)
 
     before_residual = branch(residual) + residual_fn(residual)
 
@@ -164,7 +164,7 @@ def test_residual_transform(disable):
 
     # 1. wrap your branch function
 
-    hyper_conn_branch = init_hyper_conn(dim = 512, branch = branch, residual_transform = residual_fn)
+    hyper_conn_branch = init_hyper_conn(dim = 512, branch = branch, channel_first = True, residual_transform = residual_fn)
 
     # 2. expand to 4 streams, this must be done before your trunk, typically a for-loop with many branch functions
 
