@@ -136,3 +136,46 @@ def test_multi_input_hyper_connections(disable):
     residual = reduce_stream(residual)
 
     assert residual.shape == (3, 1024, 512)
+
+@pytest.mark.parametrize('disable', (False, True))
+def test_residual_transform(disable):
+
+    # a single branch layer
+
+    branch = nn.Sequential(
+        nn.Linear(512, 512),
+        nn.SiLU(),
+        nn.Linear(512, 256)
+    )
+
+    residual_fn = nn.Linear(512, 256)
+
+    # before
+
+    residual = torch.randn(2, 1024, 512)
+
+    before_residual = branch(residual) + residual_fn(residual)
+
+    # after, say 4 streams in paper
+
+    from hyper_connections import get_init_and_expand_reduce_stream_functions
+
+    init_hyper_conn, expand_stream, reduce_stream = get_init_and_expand_reduce_stream_functions(4, disable = disable)
+
+    # 1. wrap your branch function
+
+    hyper_conn_branch = init_hyper_conn(dim = 512, branch = branch, residual_transform = residual_fn)
+
+    # 2. expand to 4 streams, this must be done before your trunk, typically a for-loop with many branch functions
+
+    residual = expand_stream(residual)
+
+    # 3. forward your residual as usual into the wrapped branch function(s)
+
+    residual = hyper_conn_branch(residual) 
+
+    # 4. reduce 4 streams with a summation, this has to be done after your for-loop trunk. for transformer, unsure whether to do before or after final norm
+
+    after_residual = reduce_stream(residual)
+
+    assert before_residual.shape == after_residual.shape

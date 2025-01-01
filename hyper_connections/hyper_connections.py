@@ -73,16 +73,18 @@ class Residual(Module):
         self,
         *args,
         branch: Module | None = None,
+        residual_transform: Module | None = None,
         **kwargs
     ):
         super().__init__()
         self.branch = branch
+        self.residual_transform = default(residual_transform, nn.Identity())
 
     def width_connection(self, residuals):
         return residuals, residuals, dict()
 
     def depth_connection(self, branch_output, residuals):
-        return branch_output + residuals
+        return branch_output + self.residual_transform(residuals)
 
     def decorate_branch(self, branch: Callable):
         assert not exists(self.branch), 'branch was already wrapped on init'
@@ -128,7 +130,8 @@ class HyperConnections(Module):
         layer_index = None,
         tanh = True,
         channel_first = False,
-        dropout = 0.
+        dropout = 0.,
+        residual_transform: Module | None = None, # to support resnet blocks where dimension in not equal to dimension out - usually a residual conv
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -168,7 +171,14 @@ class HyperConnections(Module):
 
         self.channel_first = channel_first
 
+        # maybe residual transform
+
+        self.residual_transform = default(residual_transform, nn.Identity())
+
     def width_connection(self, residuals):
+
+        maybe_transformed_residuals = self.residual_transform(residuals)
+
         # width connection
 
         if self.channel_first:
@@ -197,7 +207,7 @@ class HyperConnections(Module):
         if self.channel_first:
             branch_input = rearrange(branch_input, 'b ... d -> b d ...')
 
-        return branch_input, residuals, dict(beta = beta)
+        return branch_input, maybe_transformed_residuals, dict(beta = beta)
 
     def depth_connection(self, branch_output, residuals, *, beta):
         # 'depth' connection
@@ -205,13 +215,15 @@ class HyperConnections(Module):
         if self.channel_first:
             branch_output = rearrange(branch_output, 'b d ... -> b ... d')
 
-        residuals = einsum(branch_output, beta, 'b ... d, b ... s -> b ... s d') + residuals
-        output = rearrange(residuals, 'b ... s d -> (b s) ... d')
+        output = einsum(branch_output, beta, 'b ... d, b ... s -> b ... s d')
+        output = rearrange(output, 'b ... s d -> (b s) ... d')
 
         if self.channel_first:
             output = rearrange(output, 'b ... d -> b d ...')
 
-        return self.dropout(output)
+        residuals = residuals + output
+
+        return self.dropout(residuals)
 
     def decorate_branch(self, branch: Callable):
         assert not exists(self.branch), 'branch was already wrapped on init'
