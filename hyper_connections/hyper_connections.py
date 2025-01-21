@@ -132,6 +132,7 @@ class HyperConnections(Module):
         channel_first = False,
         dropout = 0.,
         residual_transform: Module | None = None, # to support resnet blocks where dimension in not equal to dimension out - usually a residual conv
+        add_branch_out_to_residual = True # will disable depth connections (weighted residual sum with beta) if set False
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -151,7 +152,7 @@ class HyperConnections(Module):
         self.num_residual_streams = num_residual_streams
         init_residual_index = default(layer_index, randrange(num_residual_streams)) % num_residual_streams # just choose one random residual stream if layer index not given
 
-        self.static_beta = nn.Parameter(torch.ones(num_residual_streams))
+        # width connection
 
         init_alpha0 = torch.zeros((num_residual_streams, 1))
         init_alpha0[init_residual_index, 0] = 1.
@@ -160,8 +161,15 @@ class HyperConnections(Module):
 
         self.dynamic_alpha_fn = nn.Parameter(torch.zeros(dim, num_residual_streams + 1))
         self.dynamic_alpha_scale = nn.Parameter(torch.ones(()) * 1e-2)
-        self.dynamic_beta_fn = nn.Parameter(torch.zeros(dim))
-        self.dynamic_beta_scale = nn.Parameter(torch.ones(()) * 1e-2)
+
+        # depth connection related (beta)
+
+        self.add_branch_out_to_residual = add_branch_out_to_residual
+
+        if add_branch_out_to_residual:
+            self.static_beta = nn.Parameter(torch.ones(num_residual_streams))
+            self.dynamic_beta_fn = nn.Parameter(torch.zeros(dim))
+            self.dynamic_beta_scale = nn.Parameter(torch.ones(()) * 1e-2)
 
         # dropouts
 
@@ -196,9 +204,12 @@ class HyperConnections(Module):
 
         # beta for weights from branch output back to residual streams
 
-        dc_weight = self.act(normed @ self.dynamic_beta_fn)
-        dynamic_beta = dc_weight * self.dynamic_beta_scale
-        beta = dynamic_beta + self.static_beta
+        beta = None
+
+        if self.add_branch_out_to_residual:
+            dc_weight = self.act(normed @ self.dynamic_beta_fn)
+            dynamic_beta = dc_weight * self.dynamic_beta_scale
+            beta = dynamic_beta + self.static_beta
 
         mix_h = einsum(alpha, residuals, '... s t, ... s d -> ... t d')
 
@@ -210,6 +221,8 @@ class HyperConnections(Module):
         return branch_input, maybe_transformed_residuals, dict(beta = beta)
 
     def depth_connection(self, branch_output, residuals, *, beta):
+        assert self.add_branch_out_to_residual
+
         # 'depth' connection
 
         if self.channel_first:
@@ -244,6 +257,10 @@ class HyperConnections(Module):
         branch_input, residuals, residual_kwargs = self.width_connection(residuals)
 
         def add_residual_fn(branch_out):
+
+            if not self.add_branch_out_to_residual:
+                return branch_out
+
             (branch_out, *rest), tree_spec = tree_flatten(branch_out)
 
             branch_out = self.depth_connection(branch_out, residuals, **residual_kwargs)
