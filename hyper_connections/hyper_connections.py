@@ -34,22 +34,31 @@ def identity(t):
 
 # main functions
 
-def get_expand_reduce_stream_functions(num_streams, disable = False):
+def get_expand_reduce_stream_functions(num_streams, add_stream_embed = False, dim = None, disable = False):
 
     if num_streams == 1 or disable:
         return (nn.Identity(), nn.Identity())
 
-    expand_fn = Reduce(pattern = 'b ... -> (b s) ...', reduction = 'repeat', s = num_streams)
+    if add_stream_embed:
+        assert exists(dim), '`dim` must be passed into get_init_and_expand_reduce_stream_functions for returning an expansion function with stream embeddings added'
+
+        expand_fn = StreamEmbed(num_streams, dim, expand_to_streams = True)
+    else:
+        expand_fn = Reduce(pattern = 'b ... -> (b s) ...', reduction = 'repeat', s = num_streams)
+
     reduce_fn = Reduce(pattern = '(b s) ... -> b ...', reduction = 'sum', s = num_streams)
 
     return expand_fn, reduce_fn
 
-def get_init_and_expand_reduce_stream_functions(num_streams, disable = False):
+def get_init_and_expand_reduce_stream_functions(num_streams, dim = None, add_stream_embed = False, disable = False):
 
     hyper_conn_klass = HyperConnections if not disable else Residual
 
     init_hyper_conn_fn = partial(hyper_conn_klass, num_streams)
-    expand_reduce_fns = get_expand_reduce_stream_functions(num_streams, disable = disable)
+    expand_reduce_fns = get_expand_reduce_stream_functions(num_streams, add_stream_embed = add_stream_embed, dim = dim, disable = disable)
+
+    if exists(dim):
+        init_hyper_conn_fn = partial(init_hyper_conn_fn, dim = dim)
 
     return (init_hyper_conn_fn, *expand_reduce_fns)
 
