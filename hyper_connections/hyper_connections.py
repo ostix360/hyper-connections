@@ -19,6 +19,7 @@ b - batch
 d - feature dimension
 s - residual streams
 t - residual streams + num branch inputs
+v - number of views for branch input
 """
 
 # helper functions
@@ -141,7 +142,8 @@ class HyperConnections(Module):
         channel_first = False,
         dropout = 0.,
         residual_transform: Module | None = None, # to support resnet blocks where dimension in not equal to dimension out - usually a residual conv
-        add_branch_out_to_residual = True # will disable depth connections (weighted residual sum with beta) if set False
+        add_branch_out_to_residual = True, # will disable depth connections (weighted residual sum with beta) if set False
+        num_input_views = 1 # allow for the branch module to receive multiple input views, dimension placed on the very left (before batch)
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -161,14 +163,19 @@ class HyperConnections(Module):
         self.num_residual_streams = num_residual_streams
         init_residual_index = default(layer_index, randrange(num_residual_streams)) % num_residual_streams # just choose one random residual stream if layer index not given
 
+        # width num residual streams
+
+        assert num_input_views >= 1
+        self.num_input_views = num_input_views
+
         # width connection
 
-        init_alpha0 = torch.zeros((num_residual_streams, 1))
-        init_alpha0[init_residual_index, 0] = 1.
+        init_alpha0 = torch.zeros((num_residual_streams, num_input_views))
+        init_alpha0[init_residual_index, :] = 1.
 
         self.static_alpha = nn.Parameter(torch.cat([init_alpha0, torch.eye(num_residual_streams)], dim = 1))
 
-        self.dynamic_alpha_fn = nn.Parameter(torch.zeros(dim, num_residual_streams + 1))
+        self.dynamic_alpha_fn = nn.Parameter(torch.zeros(dim, num_residual_streams + num_input_views))
         self.dynamic_alpha_scale = nn.Parameter(torch.ones(()) * 1e-2)
 
         # depth connection related (beta)
@@ -222,7 +229,11 @@ class HyperConnections(Module):
 
         mix_h = einsum(alpha, residuals, '... s t, ... s d -> ... t d')
 
-        branch_input, residuals = mix_h[..., 0, :], mix_h[..., 1:, :]
+        if self.num_input_views == 1:
+            branch_input, residuals = mix_h[..., 0, :], mix_h[..., 1:, :]
+        else:
+            branch_input, residuals = mix_h[..., :self.num_input_views, :], mix_h[..., self.num_input_views:, :]
+            branch_input = rearrange(branch_input, 'b ... v d -> v b ... d')
 
         if self.channel_first:
             branch_input = rearrange(branch_input, 'b ... d -> b d ...')
