@@ -33,6 +33,9 @@ def default(v, d):
 def identity(t):
     return t
 
+def add(x, y):
+    return x + y
+
 # main functions
 
 def get_expand_reduce_stream_functions(num_streams, add_stream_embed = False, dim = None, disable = False):
@@ -143,7 +146,8 @@ class HyperConnections(Module):
         dropout = 0.,
         residual_transform: Module | None = None, # to support resnet blocks where dimension in not equal to dimension out - usually a residual conv
         add_branch_out_to_residual = True, # will disable depth connections (weighted residual sum with beta) if set False
-        num_input_views = 1 # allow for the branch module to receive multiple input views, dimension placed on the very left (before batch)
+        num_input_views = 1, # allow for the branch module to receive multiple input views, dimension placed on the very left (before batch)
+        depth_residual_fn = add
     ):
         """
         Appendix J, Algorithm2 in - https://arxiv.org/abs/2409.19606
@@ -198,6 +202,12 @@ class HyperConnections(Module):
         # maybe residual transform
 
         self.residual_transform = default(residual_transform, nn.Identity())
+
+        # maybe custom depth connection residual function
+        # this is to prepare for gating the addition of the branch outputs to the residual streams
+        # needed for memory lanes a la RMT / LMM
+
+        self.depth_residual_fn = depth_residual_fn
 
     def width_connection(self, residuals):
 
@@ -254,7 +264,7 @@ class HyperConnections(Module):
         if self.channel_first:
             output = rearrange(output, 'b ... d -> b d ...')
 
-        residuals = residuals + output
+        residuals = self.depth_residual_fn(output, residuals)
 
         return self.dropout(residuals)
 
