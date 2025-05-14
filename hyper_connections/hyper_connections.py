@@ -85,7 +85,8 @@ def get_init_and_expand_reduce_stream_functions(num_streams, dim = None, add_str
 
 class Residual(Module):
     def __init__(
-        self,
+        self,        
+        num_residual_streams,
         dim,
         *args,
         branch: Module | None = None,
