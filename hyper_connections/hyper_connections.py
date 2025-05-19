@@ -95,7 +95,7 @@ class Residual(Module):
     ):
         super().__init__()
         self.branch = branch
-        self.norm = RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
+        self.norm = RMSNorm(dim, init_fn="zeros") # they used layernorm in paper, but rmsnorm is fine given what we know now
         self.residual_transform = default(residual_transform, nn.Identity())
 
     def width_connection(self, residuals):
@@ -166,7 +166,7 @@ class HyperConnections(Module):
 
         self.act = nn.Tanh() if tanh else nn.Identity()
 
-        self.norm = RMSNorm(dim) # they used layernorm in paper, but rmsnorm is fine given what we know now
+        self.norm = RMSNorm(dim, init_fn="zeros") # they used layernorm in paper, but rmsnorm is fine given what we know now
 
         assert num_residual_streams > 0, '`num_residual_streams` must be greater than 0'
 
